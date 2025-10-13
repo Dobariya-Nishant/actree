@@ -6,6 +6,8 @@ WORKDIR /app
 
 COPY package*.json .
 
+COPY global-bundle.pem /etc/ssl/global-bundle.pem
+
 RUN npm install pm2 -g
 
 RUN npm install

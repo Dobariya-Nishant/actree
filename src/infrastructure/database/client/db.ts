@@ -6,7 +6,7 @@ export async function dbConnect() {
   try {
     await mongoose.connect(env.DATABASE_URL, {
       tls: true,
-      tlsCAFile: path.resolve(__dirname, "global-bundle.pem"),
+      tlsCAFile: "/etc/ssl/global-bundle.pem",
       retryWrites: false,
       ssl: true,
       directConnection: true,
