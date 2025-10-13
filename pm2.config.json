@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "activatree-backend",
+      "script": "dist/index.js",
+      "autorestart": true,
+      "instances": "max"
+    }
+  ]
+}

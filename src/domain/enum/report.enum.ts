@@ -1,0 +1,15 @@
+export enum ReportTypeEnum {
+  SEXUAL = "Sexual Content",
+  ABUSE = "Abuse & Harassment",
+  HATE = "Hate Speech",
+  CHILD = "Child safety",
+  PRIVACY = "Privacy",
+  SPAM = "Spam",
+  SUICIDE = "Suicide or self-harm",
+  SENSITIVE = "Sensitive or disturbing media",
+  IMPERSONATION = "Impersonation",
+  VIOLENT = "Violent & hateful entities",
+  FAKEACCOUNT = "Fake Account",
+  ILLEGAL = "Illegal goods",
+  DONTLIKE = "I just don’t like it",
+}

@@ -1,0 +1,43 @@
+import { Media } from "@/domain/entities/media.entity";
+import { User } from "@/domain/entities/user.entity";
+import { ProductStatusEnum } from "@/domain/enum/product.enum";
+
+export interface Product {
+  _id: string;
+  isDeleted: boolean;
+  isCustomCategory: boolean;
+  userId: string;
+  category: string;
+  price: string;
+  platformFee: string;
+  formate?: string;
+  sellerReceive: string;
+  status: ProductStatusEnum;
+  size?: string;
+  dimension?: string;
+  frameRate?: string;
+  resolution?: string;
+  itemPartNumber?: string;
+  countryOfOrigin?: string;
+  fontFor?: string;
+  tags?: Array<string>;
+  name: string;
+  platform?: string;
+  description?: string;
+  displayMedia: Array<Media>;
+  orignalMedia: Array<Media>;
+  profilePicture: Media;
+  authorAbout?: string;
+  authorName?: string;
+  publisher?: string;
+  publishedDate?: Date;
+  language?: string;
+  noOfExercises?: string;
+  noOfArticles?: string;
+  printLength?: string;
+  compatibleBrowsers?: Array<string>;
+  layout?: string;
+  seller?: User;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
