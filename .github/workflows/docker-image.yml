@@ -26,7 +26,7 @@ jobs:
       - name: Docker login to ECR
         run: |
           aws ecr get-login-password --region ${{ vars.AWS_REGION }} \
-            | docker login --username AWS --password-stdin ${{ vars.ECR_REGISTRY_URI }}
+          | docker login --username AWS --password-stdin ${{ vars.ECR_REGISTRY_URI }}
 
       - name: Build Docker image
         run: |
