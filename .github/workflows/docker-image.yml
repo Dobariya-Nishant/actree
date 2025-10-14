@@ -3,70 +3,42 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
+    
+permissions:
+  id-token: write
+  contents: read
+    
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
 
-    # Step 1: Build the Docker image
-    - name: Build the Docker image
-      run: |
-        IMAGE_NAME="${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.USER_SERVICE_CONTAINER_NAME }}"
-        IMAGE_TAG="latest"
-        docker build . --file Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG
+    build:
+      runs-on: ubuntu-latest
+      environment: dev
+      env:
+        PORT: ${{ vars.PORT }}
+        COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
+        PUBLIC_REFRESH_TOKEN_KEY: ${{ secrets.PUBLIC_REFRESH_TOKEN_KEY }}
+        PRIVATE_REFRESH_TOKEN_KEY: ${{ secrets.PRIVATE_REFRESH_TOKEN_KEY }}
+        PUBLIC_ACCESS_TOKEN_KEY: ${{ secrets.PUBLIC_ACCESS_TOKEN_KEY }}
+        PRIVATE_ACCESS_TOKEN_KEY: ${{ secrets.PRIVATE_ACCESS_TOKEN_KEY }}
+        MONGO_HOST: ${{ vars.MONGO_HOST }}
+        MONGO_INITDB_ROOT_USERNAME: ${{ vars.MONGO_INITDB_ROOT_USERNAME }}
+        MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
+        MONGO_INITDB_DATABASE: ${{ vars.MONGO_INITDB_DATABASE }}
+        MONGO_PORT: ${{ vars.MONGO_PORT }}
+        
+      steps:
+        - name: Configure AWS Credentials
+        - uses: actions/checkout@v4
 
-    # Step 2: Log in to Docker Hub and push the image
-    - name: Log in to Docker Hub
-      run: |
-        docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.USER_SERVICE_CONTAINER_NAME }}:latest
-
-    # Step 3: Deploy Docker Image on EC2
-    - name: Deploy Docker Image on EC2
-      uses: appleboy/ssh-action@v0.1.5
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
-        script: |
-          CONTAINER_NAME="${{ secrets.USER_SERVICE_CONTAINER_NAME }}"
-          IMAGE_NAME="${{ secrets.DOCKER_HUB_USERNAME }}/$CONTAINER_NAME"
-          IMAGE_TAG="latest"
-          ENV_FILE="/tmp/env.json"
-         
-          # Save ENV secret to a file
-          echo '${{ secrets.ENV }}' > $ENV_FILE
-
-          # Stop and remove old container
-          sudo docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_TOKEN }}
-          sudo docker stop $CONTAINER_NAME || true
-          sudo docker rm $CONTAINER_NAME || true
-          sudo docker image rm $IMAGE_NAME:$IMAGE_TAG || true
-         
-          # Pull the latest image
-          sudo docker pull $IMAGE_NAME:$IMAGE_TAG
-         
-          # Run container with environment variables
-          sudo docker run -d --name $CONTAINER_NAME --restart=on-failure \
-          -e PORT="${{ secrets.PORT }}" \
-          -e JWT_PRIVATE_KEY="${{ secrets.JWT_PRIVATE_KEY }}" \
-          -e JWT_PUBLIC_KEY="${{ secrets.JWT_PUBLIC_KEY }}" \
-          -e PASSWORD_PRIVATE_KEY="${{ secrets.PASSWORD_PRIVATE_KEY }}" \
-          -e PASSWORD_PUBLIC_KEY="${{ secrets.PASSWORD_PUBLIC_KEY }}" \
-          -e X_API_KEY="${{ secrets.X_API_KEY }}" \
-          -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
-          -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-          -e GOOGLE_REDIRECT_URL="${{ secrets.GOOGLE_REDIRECT_URL }}" \
-          -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-          -e SEND_GRID_EMAIL_API_KEY="${{ secrets.SEND_GRID_EMAIL_API_KEY }}" \
-          -e FROM_EMAIL="${{ secrets.FROM_EMAIL }}" \
-          -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
-          -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-          -e AWS_REGION="${{ secrets.AWS_REGION }}" \
-          -e AWS_BUCKET_NAME="${{ secrets.AWS_BUCKET_NAME }}" \
-          -e API_JWT_TOKEN="${{ secrets.API_JWT_TOKEN }}" \
-          -p 8080:8080 $IMAGE_NAME:$IMAGE_TAG
-
-          # exit the session
-           exit
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v5
+          with:
+            aws-region: "${{ vars.AWS_REGION }}"
+            role-to-assume: "${{ vars.IAM_ROLE }}"
+            
+        - name: Log in to Docker Hub
+          run: |
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 448049813494.dkr.ecr.us-east-1.amazonaws.com
+            docker build -t backend-ecr-dev .
+            docker tag backend-ecr-dev:latest 448049813494.dkr.ecr.us-east-1.amazonaws.com/backend-ecr-dev:latest
+            docker push 448049813494.dkr.ecr.us-east-1.amazonaws.com/backend-ecr-dev:latest
