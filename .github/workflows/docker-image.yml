@@ -3,42 +3,36 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
-    
+
 permissions:
   id-token: write
   contents: read
-    
+
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: dev
 
-    build:
-      runs-on: ubuntu-latest
-      environment: dev
-      env:
-        PORT: ${{ vars.PORT }}
-        COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
-        PUBLIC_REFRESH_TOKEN_KEY: ${{ secrets.PUBLIC_REFRESH_TOKEN_KEY }}
-        PRIVATE_REFRESH_TOKEN_KEY: ${{ secrets.PRIVATE_REFRESH_TOKEN_KEY }}
-        PUBLIC_ACCESS_TOKEN_KEY: ${{ secrets.PUBLIC_ACCESS_TOKEN_KEY }}
-        PRIVATE_ACCESS_TOKEN_KEY: ${{ secrets.PRIVATE_ACCESS_TOKEN_KEY }}
-        MONGO_HOST: ${{ vars.MONGO_HOST }}
-        MONGO_INITDB_ROOT_USERNAME: ${{ vars.MONGO_INITDB_ROOT_USERNAME }}
-        MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
-        MONGO_INITDB_DATABASE: ${{ vars.MONGO_INITDB_DATABASE }}
-        MONGO_PORT: ${{ vars.MONGO_PORT }}
-        
-      steps:
-        - name: Configure AWS Credentials
-        - uses: actions/checkout@v4
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-        - name: Configure AWS Credentials
-          uses: aws-actions/configure-aws-credentials@v5
-          with:
-            aws-region: "${{ vars.AWS_REGION }}"
-            role-to-assume: "${{ vars.IAM_ROLE }}"
-            
-        - name: Log in to Docker Hub
-          run: |
-            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 448049813494.dkr.ecr.us-east-1.amazonaws.com
-            docker build -t backend-ecr-dev .
-            docker tag backend-ecr-dev:latest 448049813494.dkr.ecr.us-east-1.amazonaws.com/backend-ecr-dev:latest
-            docker push 448049813494.dkr.ecr.us-east-1.amazonaws.com/backend-ecr-dev:latest
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.IAM_ROLE_ARN }}
+
+      - name: Docker login to ECR
+        run: |
+          aws ecr get-login-password --region ${{ vars.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ vars.ECR_REGISTRY_URI }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t backend-ecr-dev .
+
+      - name: Tag and push image to ECR
+        run: |
+          docker tag backend-ecr-dev:latest ${{ vars.ECR_REGISTRY_URI }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ vars.ECR_REGISTRY_URI }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
