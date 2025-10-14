@@ -82,7 +82,22 @@ export async function registerServer() {
 
   server.ext("onPreResponse", (request, h) => {
     const response = request.response;
+    //@ts-ignore
+    if (response?.isBoom) {
+      //@ts-ignore
+      const statusCode = response.output?.statusCode || 500;
 
+      if (statusCode === 500) {
+        console.error("[500 ERROR]", {
+          message: response.message,
+          //@ts-ignore
+          stack: response.stack,
+          path: request.path,
+          method: request.method,
+          payload: request.payload,
+        });
+      }
+    }
     if (response instanceof AppError) {
       return h
         .response({
@@ -97,7 +112,16 @@ export async function registerServer() {
     return h.continue;
   });
 
-  server.listener;
+  server.route({
+    method: "GET",
+    path: "/api/health",
+    options: {
+      auth: false,
+    },
+    handler: (req, res) => {
+      return res.response({ status: "ok", statusCode: 200 }).code(200);
+    },
+  });
 
   for (const route of routes) {
     //@ts-ignore
