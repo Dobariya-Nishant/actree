@@ -36,8 +36,12 @@ jobs:
           docker build -t $ECR_URL .
           docker push $ECR_URL
           echo "image=$ECR_URL" >> $GITHUB_OUTPUT
-          
 
+      - name: Get Old Task Definition
+        id: get-task-def
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ vars.TASK_DEFINATION_NAME }} > taskdef.json
+          
       - name: Render new task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
