@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
     environment: dev
 
@@ -23,16 +23,60 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: ${{ vars.IAM_ROLE_ARN }}
 
-      - name: Docker login to ECR
-        run: |
-          aws ecr get-login-password --region ${{ vars.AWS_REGION }} \
-          | docker login --username AWS --password-stdin ${{ vars.ECR_REGISTRY_URI }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image
+      - name: Build and Push image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t backend-ecr-dev .
+          ECR_URL="$ECR_REGISTRY/${{ vars.IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t $ECR_URL .
+          docker push $ECR_URL
+          echo "image=$ECR_URL" >> $GITHUB_OUTPUT
+          
 
-      - name: Tag and push image to ECR
+      - name: Render new task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: taskdef.json
+          container-name: ${{ vars.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+          
+
+      - name: Register ECS task definition
+        id: register-task
         run: |
-          docker tag backend-ecr-dev:latest ${{ vars.ECR_REGISTRY_URI }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ vars.ECR_REGISTRY_URI }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          TASK_DEF_JSON=$(cat "${{ steps.task-def.outputs.task-definition }}")
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$TASK_DEF_JSON" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+          
+      - name: Create deployment input file
+        run: |
+          cat > create-deployment.json <<EOF
+          {
+            "applicationName": "${{ vars.CODEDEPLOY_APP }}",
+            "deploymentGroupName": "${{ vars.CODEDEPLOY_DEPLOYMENT_GROUP }}",
+            "revision": {
+              "revisionType": "S3",
+              "s3Location": {
+                "bucket": "${{ vars.APPSPEC_BUCKET }}",
+                "key": "${{ vars.APPSPEC_KEY }}",
+                "bundleType": "JSON"
+              }
+            }
+          }
+          EOF
+          
+      - name: Deploy with CodeDeploy
+        run: |
+          aws deploy create-deployment \
+          --cli-input-json file://create-deployment.json \
+          --description "Deploy new task definition" 
