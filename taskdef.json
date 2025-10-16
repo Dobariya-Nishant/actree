@@ -1,0 +1,9 @@
+{
+  "family": "backend-td-dev",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "448049813494.dkr.ecr.us-east-1.amazonaws.com/backend-ecr-dev:new-tag"
+    }
+  ]
+}
