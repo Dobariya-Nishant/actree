@@ -22,6 +22,6 @@ RUN rm -rf src/
 
 RUN npm install --omit=dev
 
-EXPOSE 8080
+EXPOSE 80
 
-CMD ["pm2-runtime", "start", "pm2.config.json"]
+CMD ["node", "dist/index.js"]
