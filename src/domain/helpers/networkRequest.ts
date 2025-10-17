@@ -13,7 +13,6 @@ export async function networkRequest(
     method,
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": env.X_API_KEY,
       ...headers,
     },
   };
